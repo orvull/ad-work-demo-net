@@ -1,6 +1,9 @@
 @ad_work_demo_net_HostAddress = http://localhost:5050
 
-GET {{ad_work_demo_net_HostAddress}}/weatherforecast/
+### Get AdventureWorks people
+GET {{ad_work_demo_net_HostAddress}}/api/people?search=ad&take=10
 Accept: application/json
 
-###
+### Get a sales order with details
+GET {{ad_work_demo_net_HostAddress}}/api/sales/orders/43659
+Accept: application/json

@@ -19,7 +19,11 @@ public class AdventureWorksDbContextFactory : IDesignTimeDbContextFactory<Advent
         var connectionString = configuration.GetConnectionString("AdventureWorks")
             ?? throw new InvalidOperationException("AdventureWorks connection string is not configured.");
 
-        optionsBuilder.UseSqlServer(connectionString);
+        optionsBuilder.UseSqlServer(connectionString, sqlOptions =>
+        {
+            sqlOptions.UseNetTopologySuite();
+            sqlOptions.UseHierarchyId();
+        });
 
         return new AdventureWorksDbContext(optionsBuilder.Options);
     }

@@ -1,0 +1,178 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/Program.cs b/Program.cs
+index ec02f94931b7c25cba78cfc2d0f76e59c520c537..0c3c0d5d5d421f934fd4e7384f884a65437dd2a7 100644
+--- a/Program.cs
++++ b/Program.cs
+@@ -1,21 +1,121 @@
+ using ad_work_demo_net.Data;
+ using Microsoft.EntityFrameworkCore;
+ using Microsoft.Extensions.Configuration;
+ 
+-var configuration = new ConfigurationBuilder()
+-    .SetBasePath(AppContext.BaseDirectory)
+-    .AddJsonFile("appsettings.json", optional: false)
+-    .AddEnvironmentVariables()
+-    .Build();
++namespace ad_work_demo_net;
+ 
+-var connectionString = configuration.GetConnectionString("AdventureWorks")
+-    ?? throw new InvalidOperationException("AdventureWorks connection string is not configured.");
++internal static class Program
++{
++    private const string ConnectionName = "AdventureWorks";
+ 
+-var options = new DbContextOptionsBuilder<AdventureWorksDbContext>()
+-    .UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure())
+-    .Options;
++    private static async Task Main()
++    {
++        var configuration = BuildConfiguration();
++        await using var context = CreateDbContext(configuration);
+ 
+-await using var context = new AdventureWorksDbContext(options);
++        Console.WriteLine("AdventureWorks console demo\n");
+ 
+-var peopleCount = await context.Persons.CountAsync();
+-Console.WriteLine($"AdventureWorks contains {peopleCount} people records.");
++        await ShowPersonCountAsync(context);
++        Console.WriteLine();
++
++        await ShowRecentProductsAsync(context);
++        Console.WriteLine();
++
++        await ShowTopTerritorySalesAsync(context);
++    }
++
++    private static IConfigurationRoot BuildConfiguration()
++    {
++        return new ConfigurationBuilder()
++            .SetBasePath(AppContext.BaseDirectory)
++            .AddJsonFile("appsettings.json", optional: false)
++            .AddEnvironmentVariables()
++            .Build();
++    }
++
++    private static AdventureWorksDbContext CreateDbContext(IConfiguration configuration)
++    {
++        var connectionString = configuration.GetConnectionString(ConnectionName)
++            ?? throw new InvalidOperationException($"{ConnectionName} connection string is not configured.");
++
++        var options = new DbContextOptionsBuilder<AdventureWorksDbContext>()
++            .UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure())
++            .Options;
++
++        return new AdventureWorksDbContext(options);
++    }
++
++    private static async Task ShowPersonCountAsync(AdventureWorksDbContext context)
++    {
++        var peopleCount = await context.Persons.CountAsync();
++        Console.WriteLine($"AdventureWorks contains {peopleCount:N0} people records.");
++    }
++
++    private static async Task ShowRecentProductsAsync(AdventureWorksDbContext context)
++    {
++        var recentProducts = await context.Products
++            .AsNoTracking()
++            .OrderByDescending(product => product.SellStartDate)
++            .Take(5)
++            .Select(product => new
++            {
++                product.ProductId,
++                product.Name,
++                product.ListPrice,
++                product.SellStartDate
++            })
++            .ToListAsync();
++
++        if (recentProducts.Count == 0)
++        {
++            Console.WriteLine("No products found in the database.");
++            return;
++        }
++
++        Console.WriteLine("Five most recently launched products:");
++        foreach (var product in recentProducts)
++        {
++            Console.WriteLine(
++                $"  {product.ProductId}: {product.Name} – {product.ListPrice:C} (since {product.SellStartDate:d})");
++        }
++    }
++
++    private static async Task ShowTopTerritorySalesAsync(AdventureWorksDbContext context)
++    {
++        var topTerritories = await context.SalesOrderHeaders
++            .AsNoTracking()
++            .Where(order => order.TerritoryId != null)
++            .GroupBy(order => order.TerritoryId!.Value)
++            .Select(group => new
++            {
++                TerritoryId = group.Key,
++                TotalSales = group.Sum(order => order.TotalDue)
++            })
++            .OrderByDescending(result => result.TotalSales)
++            .Take(5)
++            .Join(
++                context.SalesTerritories.AsNoTracking(),
++                sales => sales.TerritoryId,
++                territory => territory.TerritoryId,
++                (sales, territory) => new
++                {
++                    territory.Name,
++                    territory.Group,
++                    sales.TotalSales
++                })
++            .OrderByDescending(item => item.TotalSales)
++            .ToListAsync();
++
++        if (topTerritories.Count == 0)
++        {
++            Console.WriteLine("No sales orders available to calculate territory totals.");
++            return;
++        }
++
++        Console.WriteLine("Top 5 sales territories by total sales:");
++        foreach (var territory in topTerritories)
++        {
++            Console.WriteLine($"  {territory.Name} ({territory.Group}) – {territory.TotalSales:C}");
++        }
++    }
++}
+diff --git a/ad-work-demo-net.csproj b/ad-work-demo-net.csproj
+index dfb0e7560724332213a2501dd7dbbe1c456f8df3..9dcfd36ba6931a036673cd8e423b47486a60170b 100644
+--- a/ad-work-demo-net.csproj
++++ b/ad-work-demo-net.csproj
+@@ -1,29 +1,30 @@
+ <Project Sdk="Microsoft.NET.Sdk">
+ 
+   <PropertyGroup>
+     <TargetFramework>net8.0</TargetFramework>
++    <OutputType>Exe</OutputType>
+     <Nullable>enable</Nullable>
+     <ImplicitUsings>enable</ImplicitUsings>
+     <RootNamespace>ad_work_demo_net</RootNamespace>
+   </PropertyGroup>
+ 
+   <ItemGroup>
+     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.7" />
+     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.7" />
+     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer.HierarchyId" Version="8.0.7" />
+     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer.NetTopologySuite" Version="8.0.7" />
+     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.7">
+       <PrivateAssets>all</PrivateAssets>
+       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+     </PackageReference>
+     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
+     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+   </ItemGroup>
+ 
+   <ItemGroup>
+     <Content Include="appsettings.json">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </Content>
+   </ItemGroup>
+ 
+ 
+EOF
+)

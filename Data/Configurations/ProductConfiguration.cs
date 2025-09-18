@@ -2,7 +2,7 @@ using ad_work_demo_net.Domain.Entities.Production;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace ad_work_demo_net.Infrastructure.Data.Configurations;
+namespace ad_work_demo_net.Data.Configurations;
 
 public class ProductConfiguration : IEntityTypeConfiguration<Product>
 {

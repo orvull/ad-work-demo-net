@@ -2,7 +2,7 @@ using ad_work_demo_net.Domain.Entities.Sales;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace ad_work_demo_net.Infrastructure.Data.Configurations;
+namespace ad_work_demo_net.Data.Configurations;
 
 public class SalesOrderHeaderConfiguration : IEntityTypeConfiguration<SalesOrderHeader>
 {

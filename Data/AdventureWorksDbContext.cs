@@ -1,12 +1,11 @@
-using ad_work_demo_net.Application.Abstractions.Data;
 using ad_work_demo_net.Domain.Entities.Person;
 using ad_work_demo_net.Domain.Entities.Production;
 using ad_work_demo_net.Domain.Entities.Sales;
 using Microsoft.EntityFrameworkCore;
 
-namespace ad_work_demo_net.Infrastructure.Data;
+namespace ad_work_demo_net.Data;
 
-public class AdventureWorksDbContext : DbContext, IAdventureWorksDbContext
+public class AdventureWorksDbContext : DbContext
 {
     public AdventureWorksDbContext(DbContextOptions<AdventureWorksDbContext> options)
         : base(options)
@@ -20,9 +19,6 @@ public class AdventureWorksDbContext : DbContext, IAdventureWorksDbContext
     public DbSet<SalesOrderHeader> SalesOrderHeaders => Set<SalesOrderHeader>();
 
     public DbSet<SalesOrderDetail> SalesOrderDetails => Set<SalesOrderDetail>();
-
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        => base.SaveChangesAsync(cancellationToken);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

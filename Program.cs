@@ -1,61 +1,21 @@
-using System.Collections.Generic;
-using ad_work_demo_net.Application.People.Models;
-using ad_work_demo_net.Application.People.Queries;
-using ad_work_demo_net.Application.Sales.Models;
-using ad_work_demo_net.Application.Sales.Queries;
-using ad_work_demo_net.Infrastructure.DependencyInjection;
-using Microsoft.AspNetCore.Http;
+using ad_work_demo_net.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
-var builder = WebApplication.CreateBuilder(args);
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: false)
+    .AddEnvironmentVariables()
+    .Build();
 
-builder.Services.AddAdventureWorksDataAccess(builder.Configuration);
+var connectionString = configuration.GetConnectionString("AdventureWorks")
+    ?? throw new InvalidOperationException("AdventureWorks connection string is not configured.");
 
-builder.Services.AddScoped<GetPeopleQueryHandler>();
-builder.Services.AddScoped<GetSalesOrderWithDetailsQueryHandler>();
+var options = new DbContextOptionsBuilder<AdventureWorksDbContext>()
+    .UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure())
+    .Options;
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+await using var context = new AdventureWorksDbContext(options);
 
-var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-
-var peopleGroup = app.MapGroup("/api/people");
-
-peopleGroup.MapGet("/", async (string? search, int? take, GetPeopleQueryHandler handler, CancellationToken cancellationToken) =>
-    {
-        var takeValue = take is > 0 and <= 200 ? take.Value : 25;
-        var people = await handler.HandleAsync(new GetPeopleQuery(search, takeValue), cancellationToken);
-        return Results.Ok(people);
-    })
-    .WithName("GetPeople")
-    .Produces<IReadOnlyList<PersonSummaryDto>>()
-    .WithOpenApi(operation =>
-    {
-        operation.Summary = "Gets AdventureWorks people records with optional filtering.";
-        operation.Description = "Returns up to 200 contacts ordered by last name. Pass a search term to filter by name.";
-        return operation;
-    });
-
-app.MapGet("/api/sales/orders/{orderId:int}", async (int orderId, GetSalesOrderWithDetailsQueryHandler handler, CancellationToken cancellationToken) =>
-    {
-        var order = await handler.HandleAsync(new GetSalesOrderWithDetailsQuery(orderId), cancellationToken);
-        return order is not null ? Results.Ok(order) : Results.NotFound();
-    })
-    .WithName("GetSalesOrderById")
-    .Produces<SalesOrderDto>()
-    .Produces(StatusCodes.Status404NotFound)
-    .WithOpenApi(operation =>
-    {
-        operation.Summary = "Gets a sales order with nested details.";
-        operation.Description = "Looks up an individual sales order header with line items projected from the AdventureWorks OLTP database.";
-        return operation;
-    });
-
-app.Run();
+var peopleCount = await context.Persons.CountAsync();
+Console.WriteLine($"AdventureWorks contains {peopleCount} people records.");

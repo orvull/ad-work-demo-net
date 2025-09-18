@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 
-namespace ad_work_demo_net.Infrastructure.Data;
+namespace ad_work_demo_net.Data;
 
 public class AdventureWorksDbContextFactory : IDesignTimeDbContextFactory<AdventureWorksDbContext>
 {
@@ -12,7 +12,6 @@ public class AdventureWorksDbContextFactory : IDesignTimeDbContextFactory<Advent
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false)
-            .AddJsonFile("appsettings.Development.json", optional: true)
             .AddEnvironmentVariables()
             .Build();
 
